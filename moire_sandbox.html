@@ -1,0 +1,834 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Moiré / Fold Sandbox (Plotter-ish SVG Export)</title>
+  <style>
+    :root { color-scheme: dark; }
+    body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; background:#0f0f10; color:#e9e9ea; }
+    .wrap { display:grid; grid-template-columns: 360px 1fr; height:100vh; }
+    .panel { padding: 14px 14px 18px; overflow:auto; border-right: 1px solid #242428; background:#121216; }
+    .panel h1 { font-size: 16px; margin: 0 0 10px; font-weight: 650; }
+    .panel .hint { font-size: 12px; opacity: .75; line-height: 1.35; margin: 0 0 14px; }
+    .row { display:grid; grid-template-columns: 1fr 86px; gap: 10px; align-items:center; margin: 8px 0; }
+    label { font-size: 12px; opacity:.9; }
+    input[type="range"] { width: 100%; }
+    input[type="number"] { width: 86px; padding: 6px 8px; border: 1px solid #2a2a30; background:#0f0f13; color:#e9e9ea; border-radius: 8px; }
+    select, button { width: 100%; padding: 10px 10px; border-radius: 10px; border: 1px solid #2a2a30; background:#14141a; color:#e9e9ea; }
+    button { cursor:pointer; font-weight: 650; }
+    button:hover { background:#191922; }
+    .btnrow { display:grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+    .btnrow3 { display:grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-top: 10px; }
+    .sep { height: 1px; background:#25252b; margin: 12px 0; }
+    .canvasWrap { position:relative; overflow:hidden; }
+    canvas { display:block; width:100%; height:100%; }
+    .badge { position:absolute; left: 10px; bottom: 10px; font-size: 12px; opacity:.75; background: rgba(0,0,0,.35); padding: 6px 8px; border: 1px solid rgba(255,255,255,.08); border-radius: 10px; }
+    .small { font-size: 12px; opacity:.75; }
+    .two { display:grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <div class="panel">
+    <h1>Moiré / Fold Sandbox</h1>
+    <p class="hint">
+      Single-file, local HTML. Preview is raster; SVG export is vector polylines (plotter-friendly-ish).
+      The “fabric” look comes from <b>smooth scalar fields</b> + <b>density modulation</b>.
+    </p>
+
+    <div class="two">
+      <button id="btnRandomise">Randomise seed</button>
+      <button id="btnRedraw">Redraw</button>
+    </div>
+
+    <div class="sep"></div>
+
+    <div class="row">
+      <label>Preset</label>
+      <select id="preset">
+        <option value="fabric">Fabric folds (calm)</option>
+        <option value="moire">Moiré curtain</option>
+        <option value="net">Net / weave</option>
+        <option value="minimal">Minimal (clean)</option>
+      </select>
+    </div>
+
+    <div class="sep"></div>
+
+    <div class="row">
+      <label>Canvas width (px)</label>
+      <input id="w" type="number" value="1400" min="400" max="6000" step="10" />
+    </div>
+    <div class="row">
+      <label>Canvas height (px)</label>
+      <input id="h" type="number" value="1000" min="400" max="6000" step="10" />
+    </div>
+
+    <div class="sep"></div>
+
+    <div class="row">
+      <label>Background</label>
+      <select id="bg">
+        <option value="black">Black</option>
+        <option value="white">White</option>
+      </select>
+    </div>
+    <div class="row">
+      <label>Stroke width (SVG, mm)</label>
+      <input id="strokeMm" type="number" value="0.25" min="0.05" max="2" step="0.05" />
+    </div>
+    <div class="row">
+      <label>Stroke opacity</label>
+      <input id="strokeAlpha" type="number" value="1.0" min="0.05" max="1" step="0.05" />
+    </div>
+
+    <div class="sep"></div>
+
+    <div class="row">
+      <label>Base line spacing (px)</label>
+      <input id="spacing" type="number" value="8" min="2" max="80" step="0.5" />
+    </div>
+    <div class="row">
+      <label>Base angle (deg)</label>
+      <input id="angle" type="number" value="0" min="-180" max="180" step="1" />
+    </div>
+    <div class="row">
+      <label>Samples per line (points)</label>
+      <input id="samples" type="number" value="1400" min="200" max="24000" step="100" />
+    </div>
+
+    <div class="sep"></div>
+
+    <div class="row">
+      <label>Field type</label>
+      <select id="fieldType">
+        <option value="mixed">Mixed (noise + waves)</option>
+        <option value="noise">Noise only</option>
+        <option value="waves">Waves only</option>
+        <option value="ridged">Ridged (sharp folds)</option>
+      </select>
+    </div>
+
+    <div class="row">
+      <label>Seed</label>
+      <input id="seed" type="number" value="12345" min="0" max="99999999" step="1" />
+    </div>
+
+    <div class="row">
+      <label>Amplitude (px)</label>
+      <input id="amp" type="number" value="35" min="0" max="400" step="1" />
+    </div>
+    <div class="row">
+      <label>Field scale (bigger = smoother)</label>
+      <input id="scale" type="number" value="260" min="30" max="2000" step="5" />
+    </div>
+
+    <div class="row">
+      <label>Waves strength</label>
+      <input id="waveMix" type="number" value="0.55" min="0" max="1" step="0.05" />
+    </div>
+
+    <div class="row">
+      <label>Noise strength</label>
+      <input id="noiseMix" type="number" value="0.65" min="0" max="1" step="0.05" />
+    </div>
+
+    <div class="row">
+      <label>Octaves (noise detail)</label>
+      <input id="octaves" type="number" value="3" min="1" max="6" step="1" />
+    </div>
+
+    <div class="row">
+      <label>Curvature clamp (0..1)</label>
+      <input id="clamp" type="number" value="0.65" min="0" max="1" step="0.05" />
+    </div>
+
+    <div class="sep"></div>
+
+    <div class="row">
+      <label>Density modulation</label>
+      <select id="densityMode">
+        <option value="off">Off</option>
+        <option value="grad">By gradient magnitude (recommended)</option>
+      </select>
+    </div>
+    <div class="row">
+      <label>Density strength</label>
+      <input id="dens" type="number" value="0.65" min="0" max="2.5" step="0.05" />
+    </div>
+
+    <div class="sep"></div>
+
+    <div class="row">
+      <label>Moiré overlay</label>
+      <select id="overlay">
+        <option value="off">Off</option>
+        <option value="on">On</option>
+      </select>
+    </div>
+    <div class="row">
+      <label>Overlay angle delta (deg)</label>
+      <input id="overlayAng" type="number" value="3" min="-45" max="45" step="0.5" />
+    </div>
+    <div class="row">
+      <label>Overlay spacing ratio</label>
+      <input id="overlayRatio" type="number" value="1.02" min="0.7" max="1.5" step="0.01" />
+    </div>
+    <div class="row">
+      <label>Overlay phase (px)</label>
+      <input id="overlayPhase" type="number" value="0" min="-500" max="500" step="1" />
+    </div>
+
+    <div class="sep"></div>
+
+    <div class="row">
+      <label>Polyline smoothing passes</label>
+      <input id="smooth" type="number" value="1" min="0" max="6" step="1" />
+    </div>
+    <div class="row">
+      <label>Simplify epsilon (px)</label>
+      <input id="eps" type="number" value="0.6" min="0" max="6" step="0.1" />
+    </div>
+    <div class="row">
+      <label>Min segment length (px)</label>
+      <input id="minSeg" type="number" value="3" min="0" max="50" step="1" />
+    </div>
+
+    <div class="sep"></div>
+
+    <div class="btnrow3">
+      <button id="btnSvg">Export SVG</button>
+      <button id="btnPng">Export PNG</button>
+      <button id="btnReset">Reset view</button>
+    </div>
+
+    <div class="sep"></div>
+    <div class="small">
+      Notes:
+      <ul>
+        <li>For “folded fabric”, keep <b>scale high</b>, <b>octaves low</b>, and <b>amplitude moderate</b>.</li>
+        <li>If lines “mush”, increase scale and clamp, reduce octaves and amplitude.</li>
+        <li>For moiré, enable overlay and use small angle deltas (1–6°) and ratios (1.005–1.05).</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="canvasWrap">
+    <canvas id="c"></canvas>
+    <div class="badge" id="badge">Generating…</div>
+  </div>
+</div>
+
+<script>
+/* ---------------------------
+   Deterministic RNG + Smooth Noise
+   --------------------------- */
+
+// Mulberry32 PRNG
+function mulberry32(seed) {
+  let t = seed >>> 0;
+  return function() {
+    t += 0x6D2B79F5;
+    let r = Math.imul(t ^ (t >>> 15), 1 | t);
+    r ^= r + Math.imul(r ^ (r >>> 7), 61 | r);
+    return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+// 2D value noise with smooth interpolation + multi-octave
+function makeValueNoise2D(seed) {
+  const rand = mulberry32(seed);
+  const table = new Map();
+
+  function hash(ix, iy) {
+    // fast integer hash -> 32-bit
+    let h = ix * 374761393 + iy * 668265263;
+    h = (h ^ (h >>> 13)) * 1274126177;
+    h = (h ^ (h >>> 16)) >>> 0;
+    return h;
+  }
+
+  function valueAtGrid(ix, iy) {
+    const key = ix + "," + iy;
+    if (table.has(key)) return table.get(key);
+    const r = mulberry32(hash(ix, iy) ^ (seed >>> 0))();
+    table.set(key, r);
+    return r;
+  }
+
+  function smoothstep(t) { return t * t * (3 - 2 * t); }
+
+  function noise(x, y) {
+    const x0 = Math.floor(x), y0 = Math.floor(y);
+    const x1 = x0 + 1, y1 = y0 + 1;
+    const sx = smoothstep(x - x0);
+    const sy = smoothstep(y - y0);
+
+    const v00 = valueAtGrid(x0, y0);
+    const v10 = valueAtGrid(x1, y0);
+    const v01 = valueAtGrid(x0, y1);
+    const v11 = valueAtGrid(x1, y1);
+
+    const ix0 = v00 + (v10 - v00) * sx;
+    const ix1 = v01 + (v11 - v01) * sx;
+    return ix0 + (ix1 - ix0) * sy; // 0..1
+  }
+
+  function fbm(x, y, octaves) {
+    let amp = 1.0, freq = 1.0, sum = 0.0, norm = 0.0;
+    for (let i = 0; i < octaves; i++) {
+      sum += amp * (noise(x * freq, y * freq) * 2 - 1);
+      norm += amp;
+      amp *= 0.5;
+      freq *= 2.0;
+    }
+    return sum / Math.max(1e-9, norm); // ~ -1..1
+  }
+
+  return { fbm };
+}
+
+/* ---------------------------
+   Geometry helpers
+   --------------------------- */
+
+function rotatePoint(x, y, cx, cy, angRad) {
+  const dx = x - cx, dy = y - cy;
+  const c = Math.cos(angRad), s = Math.sin(angRad);
+  return [cx + dx * c - dy * s, cy + dx * s + dy * c];
+}
+
+function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+
+// Simple polyline smoothing (Chaikin-like light pass)
+function smoothPolyline(pts) {
+  if (pts.length < 3) return pts;
+  const out = [];
+  out.push(pts[0]);
+  for (let i = 0; i < pts.length - 1; i++) {
+    const a = pts[i], b = pts[i+1];
+    const q = [0.75*a[0] + 0.25*b[0], 0.75*a[1] + 0.25*b[1]];
+    const r = [0.25*a[0] + 0.75*b[0], 0.25*a[1] + 0.75*b[1]];
+    out.push(q, r);
+  }
+  out.push(pts[pts.length - 1]);
+  return out;
+}
+
+// Ramer–Douglas–Peucker simplification
+function rdp(pts, eps) {
+  if (pts.length < 3 || eps <= 0) return pts;
+  const keep = new Uint8Array(pts.length);
+  keep[0] = 1; keep[pts.length-1] = 1;
+
+  function sqDistPointToSegment(p, a, b) {
+    const vx = b[0] - a[0], vy = b[1] - a[1];
+    const wx = p[0] - a[0], wy = p[1] - a[1];
+    const c1 = vx*wx + vy*wy;
+    if (c1 <= 0) return wx*wx + wy*wy;
+    const c2 = vx*vx + vy*vy;
+    if (c2 <= c1) {
+      const dx = p[0] - b[0], dy = p[1] - b[1];
+      return dx*dx + dy*dy;
+    }
+    const t = c1 / c2;
+    const px = a[0] + t*vx, py = a[1] + t*vy;
+    const dx = p[0] - px, dy = p[1] - py;
+    return dx*dx + dy*dy;
+  }
+
+  function simplify(i0, i1) {
+    let maxD = 0, idx = -1;
+    const a = pts[i0], b = pts[i1];
+    for (let i = i0+1; i < i1; i++) {
+      const d = sqDistPointToSegment(pts[i], a, b);
+      if (d > maxD) { maxD = d; idx = i; }
+    }
+    if (maxD > eps*eps && idx !== -1) {
+      keep[idx] = 1;
+      simplify(i0, idx);
+      simplify(idx, i1);
+    }
+  }
+
+  simplify(0, pts.length-1);
+
+  const out = [];
+  for (let i = 0; i < pts.length; i++) if (keep[i]) out.push(pts[i]);
+  return out;
+}
+
+function filterMinSeg(pts, minSeg) {
+  if (pts.length < 2 || minSeg <= 0) return pts;
+  const out = [pts[0]];
+  let last = pts[0];
+  const min2 = minSeg * minSeg;
+  for (let i = 1; i < pts.length; i++) {
+    const p = pts[i];
+    const dx = p[0] - last[0], dy = p[1] - last[1];
+    if (dx*dx + dy*dy >= min2) {
+      out.push(p);
+      last = p;
+    }
+  }
+  if (out.length === 1) out.push(pts[pts.length-1]);
+  return out;
+}
+
+/* ---------------------------
+   Sandbox core
+   --------------------------- */
+
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d', { alpha: false });
+const badge = document.getElementById('badge');
+
+const ui = (id) => document.getElementById(id);
+
+let view = { panX: 0, panY: 0, zoom: 1.0 };
+let isPanning = false;
+let panStart = null;
+
+function params() {
+  return {
+    W: +ui('w').value,
+    H: +ui('h').value,
+    bg: ui('bg').value,
+    strokeMm: +ui('strokeMm').value,
+    strokeAlpha: +ui('strokeAlpha').value,
+    spacing: +ui('spacing').value,
+    angleDeg: +ui('angle').value,
+    samples: +ui('samples').value,
+    fieldType: ui('fieldType').value,
+    seed: +ui('seed').value,
+    amp: +ui('amp').value,
+    scale: +ui('scale').value,
+    waveMix: +ui('waveMix').value,
+    noiseMix: +ui('noiseMix').value,
+    octaves: +ui('octaves').value,
+    clamp: +ui('clamp').value,
+    densityMode: ui('densityMode').value,
+    dens: +ui('dens').value,
+    overlay: ui('overlay').value === 'on',
+    overlayAng: +ui('overlayAng').value,
+    overlayRatio: +ui('overlayRatio').value,
+    overlayPhase: +ui('overlayPhase').value,
+    smooth: +ui('smooth').value,
+    eps: +ui('eps').value,
+    minSeg: +ui('minSeg').value,
+  };
+}
+
+function makeField(p) {
+  const noise = makeValueNoise2D(p.seed);
+  const rand = mulberry32(p.seed);
+
+  // some fixed wave directions to keep the look coherent
+  const wAng1 = (rand()*2-1) * Math.PI * 0.25;
+  const wAng2 = (rand()*2-1) * Math.PI * 0.25 + Math.PI/2;
+  const w1x = Math.cos(wAng1), w1y = Math.sin(wAng1);
+  const w2x = Math.cos(wAng2), w2y = Math.sin(wAng2);
+  const waveFreq1 = 2.0 + rand()*1.5;
+  const waveFreq2 = 1.5 + rand()*1.2;
+  const phase1 = rand()*Math.PI*2;
+  const phase2 = rand()*Math.PI*2;
+
+  function field(x, y) {
+    // normalise to 0..1 then scale
+    const sx = (x / p.scale);
+    const sy = (y / p.scale);
+
+    let n = noise.fbm(sx, sy, p.octaves); // ~ -1..1
+    // ridged noise: sharper folds
+    if (p.fieldType === 'ridged') n = 1 - Math.abs(n);
+
+    const wx = x / (p.scale * 0.75);
+    const wy = y / (p.scale * 0.75);
+    const w = 0.65 * Math.sin((wx*w1x + wy*w1y) * waveFreq1 + phase1)
+            + 0.35 * Math.sin((wx*w2x + wy*w2y) * waveFreq2 + phase2);
+
+    let f;
+    if (p.fieldType === 'noise') f = n;
+    else if (p.fieldType === 'waves') f = w;
+    else if (p.fieldType === 'ridged') f = (n*2-1); // bring back centred
+    else {
+      // mixed
+      f = p.noiseMix * n + p.waveMix * w;
+      const denom = Math.max(1e-9, (p.noiseMix + p.waveMix));
+      f /= denom;
+    }
+    // clamp to keep smoothness / avoid mushy fold-overs
+    // clamp is 0..1; higher = stronger clamp (less extreme)
+    const c = clamp01(p.clamp);
+    const lim = 1.0 * (1.0 - 0.65*c); // c=1 -> lim ~0.35 ; c=0 -> lim=1
+    if (lim < 1.0) f = Math.max(-lim, Math.min(lim, f)) / lim;
+
+    return f; // ~ -1..1
+  }
+
+  function gradMag(x, y) {
+    // finite difference gradient magnitude of field
+    const e = 2.0; // pixel step for gradient sampling
+    const fx1 = field(x + e, y), fx0 = field(x - e, y);
+    const fy1 = field(x, y + e), fy0 = field(x, y - e);
+    const gx = (fx1 - fx0) / (2*e);
+    const gy = (fy1 - fy0) / (2*e);
+    return Math.sqrt(gx*gx + gy*gy);
+  }
+
+  return { field, gradMag };
+}
+
+// Generate polylines for a set of parallel lines and return list<polyline>
+function generateLines(p, angDeg, spacing, phaseOffsetPx, overlayTag) {
+  const { field, gradMag } = makeField({ ...p, seed: p.seed + (overlayTag ? 1337 : 0) });
+
+  const W = p.W, H = p.H;
+  const cx = W/2, cy = H/2;
+
+  const ang = angDeg * Math.PI / 180;
+  // We'll generate base lines in an unrotated coordinate system, then rotate points.
+  // Base lines: y = k * spacing + phaseOffset
+  // We'll cover bounding box in rotated space by overshooting.
+  const diag = Math.hypot(W, H);
+  const extent = diag * 0.65; // half-span in base coordinates
+  const yMin = -extent + phaseOffsetPx;
+  const yMax =  extent + phaseOffsetPx;
+
+  const numLines = Math.floor((yMax - yMin) / spacing) + 1;
+  const polylines = [];
+
+  // Precompute line direction and its perpendicular (normal)
+  const dir = [Math.cos(ang), Math.sin(ang)];
+  const nrm = [-dir[1], dir[0]]; // perpendicular
+
+  for (let i = 0; i < numLines; i++) {
+    const y0 = yMin + i * spacing;
+    const pts = [];
+    const samples = Math.max(10, Math.floor(p.samples));
+
+    for (let s = 0; s < samples; s++) {
+      // x in base coords spans [-extent, extent]
+      const x0 = -extent + (2*extent) * (s/(samples-1));
+      // base point in unrotated frame
+      let bx = x0;
+      let by = y0;
+
+      // rotate base point around origin, then translate to canvas centre
+      let px = cx + bx * dir[0] + by * nrm[0];
+      let py = cy + bx * dir[1] + by * nrm[1];
+
+      // scalar displacement along the normal direction (fabric fold)
+      const f = field(px, py); // -1..1
+      let disp = p.amp * f;
+
+      // density modulation (compress near curvature / high gradient)
+      if (p.densityMode === 'grad' && p.dens > 0) {
+        const g = gradMag(px, py);
+        // Map gradient magnitude to compression factor.
+        // (These constants are empirical; tuned for stability.)
+        const k = p.dens;
+        const comp = 1.0 / (1.0 + 35.0 * k * g); // smaller => tighter
+        // Apply compression by adjusting local "by" and displacement modestly.
+        // This is an approximation but yields the “calm areas stay uniform” feel.
+        disp *= (0.65 + 0.7*(1-comp));
+      }
+
+      // Clamp displacement to avoid fold-overs
+      const maxDisp = Math.max(0, 0.95 * spacing);
+      disp = Math.max(-maxDisp, Math.min(maxDisp, disp));
+
+      px += nrm[0] * disp;
+      py += nrm[1] * disp;
+
+      // keep only points reasonably within canvas
+      pts.push([px, py]);
+    }
+
+    // post-process polyline for plotter-ish behaviour
+    let out = pts;
+    for (let k = 0; k < p.smooth; k++) out = smoothPolyline(out);
+    out = filterMinSeg(out, p.minSeg);
+    out = rdp(out, p.eps);
+
+    polylines.push(out);
+  }
+
+  return polylines;
+}
+
+let lastPolylines = { base: [], overlay: [] };
+
+function draw() {
+  const p = params();
+  canvas.width = p.W;
+  canvas.height = p.H;
+
+  badge.textContent = "Generating…";
+  badge.style.display = "block";
+
+  // Generate base
+  const base = generateLines(p, p.angleDeg, p.spacing, 0, false);
+
+  // Optional overlay
+  let overlay = [];
+  if (p.overlay) {
+    const oSpacing = p.spacing * p.overlayRatio;
+    const oAng = p.angleDeg + p.overlayAng;
+    overlay = generateLines(p, oAng, oSpacing, p.overlayPhase, true);
+  }
+
+  lastPolylines = { base, overlay };
+
+  // Render
+  ctx.save();
+  ctx.setTransform(1,0,0,1,0,0);
+  ctx.fillStyle = (p.bg === 'black') ? "#000" : "#fff";
+  ctx.fillRect(0,0,p.W,p.H);
+
+  ctx.translate(p.W/2, p.H/2);
+  ctx.scale(view.zoom, view.zoom);
+  ctx.translate(-p.W/2 + view.panX, -p.H/2 + view.panY);
+
+  ctx.lineWidth = 1.0; // preview stroke in px; SVG uses mm
+  ctx.globalAlpha = Math.max(0.05, Math.min(1.0, p.strokeAlpha));
+  ctx.strokeStyle = (p.bg === 'black') ? "#fff" : "#000";
+
+  // Base lines
+  ctx.beginPath();
+  for (const poly of base) {
+    if (!poly || poly.length < 2) continue;
+    ctx.moveTo(poly[0][0], poly[0][1]);
+    for (let i = 1; i < poly.length; i++) ctx.lineTo(poly[i][0], poly[i][1]);
+  }
+  ctx.stroke();
+
+  // Overlay lines
+  if (overlay.length) {
+    ctx.globalAlpha = Math.max(0.05, Math.min(1.0, p.strokeAlpha * 0.65));
+    ctx.beginPath();
+    for (const poly of overlay) {
+      if (!poly || poly.length < 2) continue;
+      ctx.moveTo(poly[0][0], poly[0][1]);
+      for (let i = 1; i < poly.length; i++) ctx.lineTo(poly[i][0], poly[i][1]);
+    }
+    ctx.stroke();
+  }
+
+  ctx.restore();
+  badge.textContent = `Lines: base ${base.length}${overlay.length ? ` + overlay ${overlay.length}` : ""} | Points/line ~${p.samples}`;
+  setTimeout(() => badge.style.display = "block", 0);
+}
+
+function exportSVG() {
+  const p = params();
+  const { base, overlay } = lastPolylines;
+
+  // Map pixels -> mm for SVG units
+  // Default: 96 DPI equivalent => 1 px ~ 0.264583 mm
+  // You can change this constant if you prefer a different mapping.
+  const pxToMm = 0.264583;
+
+  const Wmm = p.W * pxToMm;
+  const Hmm = p.H * pxToMm;
+
+  const strokeColor = (p.bg === 'black') ? "#ffffff" : "#000000";
+  const bgColor = (p.bg === 'black') ? "#000000" : "#ffffff";
+
+  function fmt(n) { return (Math.round(n * 100) / 100).toFixed(2); } // keep compact
+  function mm(x) { return x * pxToMm; }
+
+  function polyToPath(poly) {
+    if (!poly || poly.length < 2) return "";
+    let d = `M ${fmt(mm(poly[0][0]))} ${fmt(mm(poly[0][1]))}`;
+    for (let i = 1; i < poly.length; i++) {
+      d += ` L ${fmt(mm(poly[i][0]))} ${fmt(mm(poly[i][1]))}`;
+    }
+    return d;
+  }
+
+  // Build minimal SVG
+  // Note: We intentionally keep hatch groups separate for easy deletion/replacement.
+  let svg = '';
+  svg += `<?xml version="1.0" encoding="UTF-8" standalone="no"?>\n`;
+  svg += `<svg xmlns="http://www.w3.org/2000/svg" width="${fmt(Wmm)}mm" height="${fmt(Hmm)}mm" viewBox="0 0 ${fmt(Wmm)} ${fmt(Hmm)}">\n`;
+  svg += `  <rect x="0" y="0" width="${fmt(Wmm)}" height="${fmt(Hmm)}" fill="${bgColor}"/>\n`;
+
+  svg += `  <g id="base" fill="none" stroke="${strokeColor}" stroke-opacity="${p.strokeAlpha}" stroke-width="${p.strokeMm}mm" stroke-linecap="round" stroke-linejoin="round">\n`;
+  // Export as multiple <path> to keep strings manageable; still compact.
+  // You can join them into one path, but huge single paths can be painful in editors.
+  let count = 0;
+  for (const poly of base) {
+    const d = polyToPath(poly);
+    if (!d) continue;
+    svg += `    <path d="${d}"/>\n`;
+    count++;
+  }
+  svg += `  </g>\n`;
+
+  if (overlay && overlay.length) {
+    svg += `  <g id="overlay" fill="none" stroke="${strokeColor}" stroke-opacity="${Math.max(0.05, Math.min(1.0, p.strokeAlpha * 0.65))}" stroke-width="${p.strokeMm}mm" stroke-linecap="round" stroke-linejoin="round">\n`;
+    for (const poly of overlay) {
+      const d = polyToPath(poly);
+      if (!d) continue;
+      svg += `    <path d="${d}"/>\n`;
+    }
+    svg += `  </g>\n`;
+  }
+
+  svg += `</svg>\n`;
+
+  const blob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const name = `moire_${Date.now()}.svg`;
+  a.href = url;
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+function exportPNG() {
+  const p = params();
+  const a = document.createElement('a');
+  a.download = `moire_${Date.now()}.png`;
+  a.href = canvas.toDataURL('image/png');
+  a.click();
+}
+
+// Simple presets to get you into useful regimes quickly
+function applyPreset(name) {
+  if (name === 'fabric') {
+    ui('spacing').value = 8;
+    ui('angle').value = 0;
+    ui('samples').value = 1600;
+    ui('fieldType').value = 'mixed';
+    ui('amp').value = 34;
+    ui('scale').value = 320;
+    ui('waveMix').value = 0.55;
+    ui('noiseMix').value = 0.65;
+    ui('octaves').value = 3;
+    ui('clamp').value = 0.7;
+    ui('densityMode').value = 'grad';
+    ui('dens').value = 0.7;
+    ui('overlay').value = 'off';
+    ui('smooth').value = 1;
+    ui('eps').value = 0.7;
+    ui('minSeg').value = 3;
+  } else if (name === 'moire') {
+    ui('spacing').value = 10;
+    ui('angle').value = 0;
+    ui('samples').value = 1400;
+    ui('fieldType').value = 'waves';
+    ui('amp').value = 20;
+    ui('scale').value = 420;
+    ui('waveMix').value = 1.0;
+    ui('noiseMix').value = 0.0;
+    ui('octaves').value = 2;
+    ui('clamp').value = 0.65;
+    ui('densityMode').value = 'off';
+    ui('dens').value = 0.0;
+    ui('overlay').value = 'on';
+    ui('overlayAng').value = 3;
+    ui('overlayRatio').value = 1.02;
+    ui('overlayPhase').value = 0;
+    ui('smooth').value = 1;
+    ui('eps').value = 0.6;
+    ui('minSeg').value = 3;
+  } else if (name === 'net') {
+    ui('spacing').value = 9;
+    ui('angle').value = 10;
+    ui('samples').value = 1600;
+    ui('fieldType').value = 'mixed';
+    ui('amp').value = 28;
+    ui('scale').value = 220;
+    ui('waveMix').value = 0.35;
+    ui('noiseMix').value = 0.85;
+    ui('octaves').value = 4;
+    ui('clamp').value = 0.6;
+    ui('densityMode').value = 'grad';
+    ui('dens').value = 0.9;
+    ui('overlay').value = 'on';
+    ui('overlayAng').value = -12;
+    ui('overlayRatio').value = 1.06;
+    ui('overlayPhase').value = 10;
+    ui('smooth').value = 1;
+    ui('eps').value = 0.8;
+    ui('minSeg').value = 3;
+  } else if (name === 'minimal') {
+    ui('spacing').value = 12;
+    ui('angle').value = 0;
+    ui('samples').value = 1200;
+    ui('fieldType').value = 'noise';
+    ui('amp').value = 12;
+    ui('scale').value = 520;
+    ui('waveMix').value = 0.0;
+    ui('noiseMix').value = 1.0;
+    ui('octaves').value = 2;
+    ui('clamp').value = 0.85;
+    ui('densityMode').value = 'off';
+    ui('dens').value = 0.0;
+    ui('overlay').value = 'off';
+    ui('smooth').value = 1;
+    ui('eps').value = 0.9;
+    ui('minSeg').value = 4;
+  }
+}
+
+function randomiseSeed() {
+  const s = (Math.random() * 1e9) | 0;
+  ui('seed').value = Math.abs(s);
+}
+
+// View controls (simple pan/zoom)
+canvas.addEventListener('wheel', (e) => {
+  e.preventDefault();
+  const delta = Math.sign(e.deltaY);
+  const factor = (delta > 0) ? 0.92 : 1.08;
+  view.zoom = Math.max(0.2, Math.min(6.0, view.zoom * factor));
+  draw();
+}, { passive: false });
+
+canvas.addEventListener('mousedown', (e) => {
+  isPanning = true;
+  panStart = { x: e.clientX, y: e.clientY, panX: view.panX, panY: view.panY };
+});
+window.addEventListener('mouseup', () => { isPanning = false; panStart = null; });
+window.addEventListener('mousemove', (e) => {
+  if (!isPanning || !panStart) return;
+  const p = params();
+  const dx = (e.clientX - panStart.x) / view.zoom;
+  const dy = (e.clientY - panStart.y) / view.zoom;
+  view.panX = panStart.panX + dx;
+  view.panY = panStart.panY + dy;
+  draw();
+});
+
+ui('btnReset').addEventListener('click', () => { view = { panX: 0, panY: 0, zoom: 1.0 }; draw(); });
+ui('btnSvg').addEventListener('click', exportSVG);
+ui('btnPng').addEventListener('click', exportPNG);
+ui('btnRedraw').addEventListener('click', draw);
+ui('btnRandomise').addEventListener('click', () => { randomiseSeed(); draw(); });
+
+ui('preset').addEventListener('change', (e) => { applyPreset(e.target.value); draw(); });
+
+// Redraw on changes (lightweight; you can debounce if you push resolution hard)
+const watched = [
+  'w','h','bg','strokeMm','strokeAlpha',
+  'spacing','angle','samples',
+  'fieldType','seed','amp','scale','waveMix','noiseMix','octaves','clamp',
+  'densityMode','dens',
+  'overlay','overlayAng','overlayRatio','overlayPhase',
+  'smooth','eps','minSeg'
+];
+watched.forEach(id => ui(id).addEventListener('input', () => draw()));
+
+// Initial
+applyPreset('fabric');
+draw();
+</script>
+</body>
+</html>
