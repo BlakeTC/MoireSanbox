@@ -1,0 +1,754 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Moire / Cloth-Lattice Sandbox (SVG export)</title>
+  <style>
+    :root { color-scheme: dark; }
+    body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; background:#0b0b0e; color:#eaeaf0; }
+    .wrap { display:grid; grid-template-columns: 360px 1fr; height:100vh; }
+    .panel { padding:16px; border-right:1px solid #22232a; overflow:auto; }
+    .panel h1 { font-size:16px; margin:0 0 12px 0; font-weight:650; }
+    .row { margin:10px 0; }
+    label { display:flex; justify-content:space-between; gap:12px; font-size:12px; color:#cfd0d8; }
+    input[type="range"] { width:100%; }
+    select, button, input[type="number"] {
+      width:100%; padding:8px 10px; border-radius:10px; border:1px solid #2a2b33;
+      background:#111219; color:#eaeaf0; outline:none;
+    }
+    button { cursor:pointer; font-weight:650; }
+    button:hover { background:#171825; }
+    .small { font-size:12px; color:#a9abb7; line-height:1.35; }
+    canvas { width:100%; height:100%; display:block; background:#000; }
+    .split { display:grid; grid-template-columns: 1fr 1fr; gap:8px; }
+    .hr { height:1px; background:#22232a; margin:12px 0; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <div class="panel">
+    <h1>Cloth-lattice / folded moiré sandbox</h1>
+    <div class="small">
+      This is a parametric grid (u,v) deformed by a spine field (bend/twist) + pleats + ripples.
+      The “extraordinary” part is the pleat/fold operator: it creates local compression/expansion in a controlled way,
+      which is how you get fabric-like terraces instead of chaotic warping.
+    </div>
+
+    <div class="hr"></div>
+
+    <div class="row">
+      <label><span>Preset</span><span id="presetLabel"></span></label>
+      <select id="preset">
+        <option value="portraitFold">Portrait fold (tight facial ripples)</option>
+        <option value="sculptureLoft">Sculpture loft (smooth torsion)</option>
+        <option value="hardPleats">Hard pleats (architectural)</option>
+        <option value="moireVortex">Moiré vortex (interference)</option>
+      </select>
+    </div>
+
+    <div class="row split">
+      <button id="renderBtn">Render</button>
+      <button id="randomBtn">Randomise (gentle)</button>
+    </div>
+
+    <div class="hr"></div>
+
+    <div class="row">
+      <label><span>Line spacing (px)</span><span id="lineSpacingVal"></span></label>
+      <input id="lineSpacing" type="range" min="4" max="28" step="1" value="10" />
+    </div>
+
+    <div class="row">
+      <label><span>Samples per line</span><span id="samplesVal"></span></label>
+      <input id="samples" type="range" min="300" max="2600" step="50" value="1300" />
+    </div>
+
+    <div class="row">
+      <label><span>Simplify (0–1)</span><span id="simplifyVal"></span></label>
+      <input id="simplify" type="range" min="0" max="0.98" step="0.02" value="0.60" />
+    </div>
+
+    <div class="hr"></div>
+
+    <div class="row">
+      <label><span>Spine bend</span><span id="bendVal"></span></label>
+      <input id="bend" type="range" min="0" max="2.8" step="0.02" value="1.25" />
+    </div>
+
+    <div class="row">
+      <label><span>Twist</span><span id="twistVal"></span></label>
+      <input id="twist" type="range" min="0" max="4.0" step="0.02" value="1.55" />
+    </div>
+
+    <div class="row">
+      <label><span>Twist falloff</span><span id="falloffVal"></span></label>
+      <input id="falloff" type="range" min="0.15" max="2.5" step="0.01" value="0.70" />
+    </div>
+
+    <div class="hr"></div>
+
+    <div class="row">
+      <label><span>Pleat strength</span><span id="pleatVal"></span></label>
+      <input id="pleat" type="range" min="0" max="2.2" step="0.02" value="1.05" />
+    </div>
+
+    <div class="row">
+      <label><span>Pleat frequency</span><span id="pleatFreqVal"></span></label>
+      <input id="pleatFreq" type="range" min="0.2" max="6.0" step="0.02" value="1.6" />
+    </div>
+
+    <div class="row">
+      <label><span>Ripple strength</span><span id="rippleVal"></span></label>
+      <input id="ripple" type="range" min="0" max="2.8" step="0.02" value="0.95" />
+    </div>
+
+    <div class="row">
+      <label><span>Ripple period</span><span id="ripplePerVal"></span></label>
+      <input id="ripplePer" type="range" min="30" max="380" step="5" value="150" />
+    </div>
+
+    <div class="row">
+      <label><span>Turbulence</span><span id="turbVal"></span></label>
+      <input id="turb" type="range" min="0" max="1.6" step="0.02" value="0.22" />
+    </div>
+
+    <div class="hr"></div>
+
+    <div class="row">
+      <label><span>Silhouette: superellipse p</span><span id="superPVal"></span></label>
+      <input id="superP" type="range" min="1.2" max="6.0" step="0.05" value="2.35" />
+    </div>
+
+    <div class="row">
+      <label><span>Silhouette inset (px)</span><span id="insetVal"></span></label>
+      <input id="inset" type="range" min="0" max="120" step="1" value="24" />
+    </div>
+
+    <div class="row">
+      <label><span>Background</span><span></span></label>
+      <select id="bg">
+        <option value="black" selected>Black</option>
+        <option value="white">White</option>
+      </select>
+    </div>
+
+    <div class="row">
+      <label><span>Invert lines</span><span></span></label>
+      <select id="invert">
+        <option value="no" selected>No</option>
+        <option value="yes">Yes</option>
+      </select>
+    </div>
+
+    <div class="hr"></div>
+
+    <div class="row">
+      <label><span>Export page</span><span></span></label>
+      <select id="page">
+        <option value="A4p" selected>A4 portrait (210×297 mm)</option>
+        <option value="A4l">A4 landscape (297×210 mm)</option>
+        <option value="A5p">A5 portrait (148×210 mm)</option>
+        <option value="sq200">Square (200×200 mm)</option>
+      </select>
+    </div>
+
+    <div class="row">
+      <label><span>Stroke (mm)</span><span id="strokeVal"></span></label>
+      <input id="strokeMm" type="range" min="0.10" max="1.50" step="0.05" value="0.25" />
+    </div>
+
+    <div class="row split">
+      <button id="exportBtn">Export SVG</button>
+      <button id="exportHiBtn">Export SVG (denser)</button>
+    </div>
+
+    <div class="hr"></div>
+
+    <div class="small">
+      Notes:
+      (1) If you want “black wedges”, increase pleat strength and reduce line spacing.
+      (2) If it becomes chaotic, reduce turbulence and ripple strength, and increase falloff.
+      (3) This is deterministic per render unless you hit Randomise.
+    </div>
+  </div>
+
+  <div>
+    <canvas id="c"></canvas>
+  </div>
+</div>
+
+<script>
+(() => {
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d', { alpha: false });
+
+  const el = (id) => document.getElementById(id);
+
+  const UI = {
+    preset: el('preset'),
+    renderBtn: el('renderBtn'),
+    randomBtn: el('randomBtn'),
+    exportBtn: el('exportBtn'),
+    exportHiBtn: el('exportHiBtn'),
+
+    lineSpacing: el('lineSpacing'),
+    samples: el('samples'),
+    simplify: el('simplify'),
+
+    bend: el('bend'),
+    twist: el('twist'),
+    falloff: el('falloff'),
+
+    pleat: el('pleat'),
+    pleatFreq: el('pleatFreq'),
+    ripple: el('ripple'),
+    ripplePer: el('ripplePer'),
+    turb: el('turb'),
+
+    superP: el('superP'),
+    inset: el('inset'),
+
+    bg: el('bg'),
+    invert: el('invert'),
+    page: el('page'),
+    strokeMm: el('strokeMm'),
+  };
+
+  const L = {
+    presetLabel: el('presetLabel'),
+    lineSpacingVal: el('lineSpacingVal'),
+    samplesVal: el('samplesVal'),
+    simplifyVal: el('simplifyVal'),
+    bendVal: el('bendVal'),
+    twistVal: el('twistVal'),
+    falloffVal: el('falloffVal'),
+    pleatVal: el('pleatVal'),
+    pleatFreqVal: el('pleatFreqVal'),
+    rippleVal: el('rippleVal'),
+    ripplePerVal: el('ripplePerVal'),
+    turbVal: el('turbVal'),
+    superPVal: el('superPVal'),
+    insetVal: el('insetVal'),
+    strokeVal: el('strokeVal'),
+  };
+
+  // --- Resize ---
+  function resize() {
+    const dpr = Math.max(1, window.devicePixelRatio || 1);
+    const rect = canvas.getBoundingClientRect();
+    canvas.width = Math.floor(rect.width * dpr);
+    canvas.height = Math.floor(rect.height * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    render();
+  }
+  window.addEventListener('resize', resize);
+
+  // --- Math helpers ---
+  const TAU = Math.PI * 2;
+
+  function clamp(x, a, b){ return Math.max(a, Math.min(b, x)); }
+  function lerp(a,b,t){ return a + (b-a)*t; }
+  function smoothstep(a,b,t){
+    t = clamp((t-a)/(b-a), 0, 1);
+    return t*t*(3-2*t);
+  }
+
+  // Deterministic PRNG
+  let seed = 1337;
+  function rnd() {
+    seed = (seed * 1664525 + 1013904223) >>> 0;
+    return seed / 4294967296;
+  }
+  function rndn() {
+    // approx normal via Box-Muller
+    const u = Math.max(1e-9, rnd());
+    const v = Math.max(1e-9, rnd());
+    return Math.sqrt(-2*Math.log(u)) * Math.cos(TAU*v);
+  }
+
+  // Value noise (simple & fast)
+  function hash2(x,y){
+    let h = x*374761393 + y*668265263;
+    h = (h ^ (h >> 13)) * 1274126177;
+    return ((h ^ (h >> 16)) >>> 0) / 4294967296;
+  }
+  function vnoise(x,y){
+    const xi = Math.floor(x), yi = Math.floor(y);
+    const xf = x - xi, yf = y - yi;
+    const u = xf*xf*(3-2*xf);
+    const v = yf*yf*(3-2*yf);
+    const a = hash2(xi, yi);
+    const b = hash2(xi+1, yi);
+    const c = hash2(xi, yi+1);
+    const d = hash2(xi+1, yi+1);
+    return lerp(lerp(a,b,u), lerp(c,d,u), v)*2 - 1;
+  }
+  function fbm(x,y,oct=4){
+    let f=1, a=0.5, s=0;
+    for(let i=0;i<oct;i++){
+      s += a*vnoise(x*f, y*f);
+      f *= 2.02; a *= 0.5;
+    }
+    return s;
+  }
+
+  // --- Silhouette: superellipse ---
+  function insideSuperellipse(px, py, cx, cy, rx, ry, p) {
+    const x = (px - cx) / rx;
+    const y = (py - cy) / ry;
+    return (Math.pow(Math.abs(x), p) + Math.pow(Math.abs(y), p)) <= 1.0;
+  }
+
+  // --- The “extraordinary” warp: spine frame + pleat fold operator ---
+  // Idea:
+  // 1) Define a spine curve C(t) down the page.
+  // 2) For each point, estimate its closest spine parameter t (cheap approx).
+  // 3) In spine local coordinates (s along spine, d signed distance), apply:
+  //    - bend: offset along normal based on s
+  //    - twist: rotate around spine by angle depending on d (falloff)
+  //    - pleat: a *fold operator* that compresses/expands d periodically -> fabric ridges
+  //    - ripples: sinusoidal normal offset travelling along s
+  // 4) Convert back to x,y.
+  //
+  // The pleat operator is the key: it is not a smooth “wiggle”; it creates terraces.
+  function spinePoint(t, W, H, bend) {
+    // A gently S-shaped spine, bend controls amplitude.
+    const x0 = W*0.52;
+    const y0 = H*0.10;
+    const y1 = H*0.92;
+    const y = lerp(y0, y1, t);
+
+    const k1 = bend * 0.18;
+    const k2 = bend * 0.09;
+    const x = x0
+      + Math.sin((t*1.10 + 0.05)*Math.PI*2) * (W*k1)
+      + Math.sin((t*2.40 + 0.12)*Math.PI*2) * (W*k2);
+
+    return {x,y};
+  }
+
+  function spineTangent(t, W, H, bend) {
+    const eps = 1e-3;
+    const p0 = spinePoint(clamp(t-eps,0,1), W,H,bend);
+    const p1 = spinePoint(clamp(t+eps,0,1), W,H,bend);
+    let tx = p1.x - p0.x;
+    let ty = p1.y - p0.y;
+    const m = Math.hypot(tx,ty) || 1;
+    tx/=m; ty/=m;
+    // normal (left)
+    return {tx,ty,nx:-ty, ny:tx};
+  }
+
+  // Cheap “closest t” approximation: assume spine mainly varies with y -> map y to t, then refine a little
+  function approxClosestT(px, py, W, H, bend) {
+    const y0 = H*0.10, y1 = H*0.92;
+    let t = clamp((py - y0)/(y1 - y0), 0, 1);
+
+    // refine by local search
+    let bestT = t, bestD = 1e18;
+    for (let i=0;i<6;i++){
+      const step = 0.08 * Math.pow(0.55, i);
+      for (const dt of [-step, 0, step]){
+        const tt = clamp(t+dt, 0, 1);
+        const sp = spinePoint(tt, W,H,bend);
+        const d2 = (px-sp.x)*(px-sp.x) + (py-sp.y)*(py-sp.y);
+        if (d2 < bestD) { bestD = d2; bestT = tt; }
+      }
+      t = bestT;
+    }
+    return bestT;
+  }
+
+  function pleatFold(d, freq, strength, softness) {
+    // A controlled fold/terrace:
+    // Map d through a periodic “ease” that alternates compression/expansion.
+    // freq controls pleat spacing. strength controls terrace height.
+    // softness controls sharpness (0 -> sharp creases, 1 -> soft fabric).
+    const x = d * freq;
+    const phase = x - Math.floor(x); // [0,1)
+    const tri = phase < 0.5 ? phase*2 : (1-phase)*2; // triangle wave [0,1]
+    const crease = Math.pow(tri, lerp(0.25, 2.4, softness)); // sharpen/soften
+    const sign = (Math.floor(x) % 2 === 0) ? 1 : -1;        // alternate
+    return d + sign * strength * (0.5 - crease);
+  }
+
+  function warpPoint(px, py, P) {
+    const {W,H,bend,twist,falloff,pleat,pleatFreq,ripple,ripplePer,turb} = P;
+
+    const t = approxClosestT(px, py, W,H,bend);
+    const sp = spinePoint(t, W,H,bend);
+    const frame = spineTangent(t, W,H,bend);
+
+    // local coords (s ~ along spine via t, d ~ signed distance)
+    const dx = px - sp.x;
+    const dy = py - sp.y;
+    const d = dx*frame.nx + dy*frame.ny;  // signed normal distance
+    const s = t * H;                      // approx arclength proxy
+
+    // 1) Pleat fold: terraces along normal direction
+    const softness = 0.35; // fixed; “extraordinary” look likes creases
+    const dPleat = pleatFold(d / (0.9), pleatFreq / 130.0, pleat * 38.0, softness) * 0.9;
+
+    // 2) Ripples travelling along spine, decaying with distance
+    const rippleEnv = Math.exp(-(dPleat*dPleat) / (2 * Math.pow(120*falloff, 2)));
+    const rip = ripple * 34.0 * Math.sin(TAU * (s / ripplePer) + 0.8*Math.sin(t*TAU*1.3)) * rippleEnv;
+
+    // 3) Twist around spine: rotate local frame by angle that increases near spine
+    const ang = twist * 1.25 * rippleEnv * (0.4 + 0.6*Math.sin(t*TAU*0.5+0.3));
+    const ca = Math.cos(ang), sa = Math.sin(ang);
+
+    // 4) Small curl-ish turbulence (fbm) to break perfection without “melting”
+    const n = turb * 10.0 * fbm(px*0.0065 + 11.2, py*0.0065 - 3.7, 4) * rippleEnv;
+
+    // reconstruct point from spine + rotated normal/tangent components
+    // original decomposition: p = sp + (along tangent) + (along normal)
+    // we keep along-tangent component from (dx,dy) projected onto tangent.
+    const alongT = dx*frame.tx + dy*frame.ty;
+
+    // apply twist by rotating (alongT, dPleat) in local (tangent, normal) plane
+    const u = alongT * ca - (dPleat + rip + n) * sa;
+    const v = alongT * sa + (dPleat + rip + n) * ca;
+
+    const x = sp.x + u*frame.tx + v*frame.nx;
+    const y = sp.y + u*frame.ty + v*frame.ny;
+
+    return {x,y};
+  }
+
+  // --- Polyline simplify (RDP) ---
+  function simplifyRDP(pts, eps) {
+    if (pts.length <= 2) return pts;
+    const keep = new Uint8Array(pts.length);
+    keep[0]=1; keep[pts.length-1]=1;
+
+    function distToSeg(p, a, b) {
+      const vx = b.x - a.x, vy = b.y - a.y;
+      const wx = p.x - a.x, wy = p.y - a.y;
+      const c1 = vx*wx + vy*wy;
+      if (c1 <= 0) return Math.hypot(wx, wy);
+      const c2 = vx*vx + vy*vy;
+      if (c2 <= c1) return Math.hypot(p.x-b.x, p.y-b.y);
+      const t = c1 / c2;
+      const px = a.x + t*vx, py = a.y + t*vy;
+      return Math.hypot(p.x-px, p.y-py);
+    }
+
+    function rec(i0, i1) {
+      let maxD = -1, idx = -1;
+      const a = pts[i0], b = pts[i1];
+      for (let i=i0+1;i<i1;i++){
+        const d = distToSeg(pts[i], a, b);
+        if (d > maxD) { maxD = d; idx = i; }
+      }
+      if (maxD > eps && idx !== -1) {
+        keep[idx]=1;
+        rec(i0, idx);
+        rec(idx, i1);
+      }
+    }
+    rec(0, pts.length-1);
+
+    const out = [];
+    for (let i=0;i<pts.length;i++) if (keep[i]) out.push(pts[i]);
+    return out;
+  }
+
+  // --- Render lines, clip to silhouette ---
+  function render({exportMode=false, exportDense=false} = {}) {
+    // update labels
+    L.presetLabel.textContent = UI.preset.value;
+    const v = (x) => (parseFloat(x).toFixed(2));
+    L.lineSpacingVal.textContent = UI.lineSpacing.value;
+    L.samplesVal.textContent = UI.samples.value;
+    L.simplifyVal.textContent = v(UI.simplify.value);
+    L.bendVal.textContent = v(UI.bend.value);
+    L.twistVal.textContent = v(UI.twist.value);
+    L.falloffVal.textContent = v(UI.falloff.value);
+    L.pleatVal.textContent = v(UI.pleat.value);
+    L.pleatFreqVal.textContent = v(UI.pleatFreq.value);
+    L.rippleVal.textContent = v(UI.ripple.value);
+    L.ripplePerVal.textContent = UI.ripplePer.value;
+    L.turbVal.textContent = v(UI.turb.value);
+    L.superPVal.textContent = v(UI.superP.value);
+    L.insetVal.textContent = UI.inset.value;
+    L.strokeVal.textContent = v(UI.strokeMm.value);
+
+    const rect = canvas.getBoundingClientRect();
+    const W = rect.width, H = rect.height;
+
+    const bg = UI.bg.value;
+    const invert = UI.invert.value === 'yes';
+    const strokeCol = invert ? (bg==='black' ? '#000' : '#fff') : (bg==='black' ? '#fff' : '#000');
+    const bgCol = invert ? (bg==='black' ? '#fff' : '#000') : (bg==='black' ? '#000' : '#fff');
+
+    ctx.save();
+    ctx.setTransform(1,0,0,1,0,0);
+    ctx.fillStyle = bgCol;
+    ctx.fillRect(0,0,W,H);
+    ctx.restore();
+
+    const P = {
+      W,H,
+      bend: parseFloat(UI.bend.value),
+      twist: parseFloat(UI.twist.value),
+      falloff: parseFloat(UI.falloff.value),
+      pleat: parseFloat(UI.pleat.value),
+      pleatFreq: parseFloat(UI.pleatFreq.value),
+      ripple: parseFloat(UI.ripple.value),
+      ripplePer: parseFloat(UI.ripplePer.value),
+      turb: parseFloat(UI.turb.value),
+    };
+
+    const spacing = parseFloat(UI.lineSpacing.value) * (exportDense ? 0.75 : 1.0);
+    const samples = Math.floor(parseFloat(UI.samples.value) * (exportDense ? 1.25 : 1.0));
+    const simp = parseFloat(UI.simplify.value);
+    const inset = parseFloat(UI.inset.value);
+
+    // silhouette params
+    const p = parseFloat(UI.superP.value);
+    const cx = W*0.50, cy = H*0.50;
+    const rx = Math.max(40, W*0.42 - inset);
+    const ry = Math.max(40, H*0.46 - inset);
+
+    // drawing settings
+    ctx.lineWidth = 1.0;
+    ctx.strokeStyle = strokeCol;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+
+    // generate horizontal family in param space, then warp
+    // domain in px (before warp)
+    const pad = 40;
+    const x0 = cx - rx - pad, x1 = cx + rx + pad;
+    const y0 = cy - ry - pad, y1 = cy + ry + pad;
+
+    const lines = [];
+
+    for (let y = y0; y <= y1; y += spacing) {
+      const pts = [];
+      for (let i=0;i<=samples;i++){
+        const t = i / samples;
+        const x = lerp(x0, x1, t);
+        const wp = warpPoint(x, y, P);
+        pts.push(wp);
+      }
+
+      // Clip to silhouette by “inside” test per segment, splitting into strokes
+      let seg = [];
+      for (let i=0;i<pts.length;i++){
+        const pt = pts[i];
+        const inside = insideSuperellipse(pt.x, pt.y, cx, cy, rx, ry, p);
+        if (inside) {
+          seg.push(pt);
+        } else {
+          if (seg.length >= 2) lines.push(seg);
+          seg = [];
+        }
+      }
+      if (seg.length >= 2) lines.push(seg);
+    }
+
+    // Simplify and draw
+    for (const poly of lines) {
+      const eps = (1.0 - simp) * 8.0; // higher simplify -> smaller eps
+      const simpPoly = (eps > 0.05) ? simplifyRDP(poly, eps) : poly;
+
+      // Ignore tiny strokes
+      if (simpPoly.length < 2) continue;
+
+      ctx.beginPath();
+      ctx.moveTo(simpPoly[0].x, simpPoly[0].y);
+      for (let i=1;i<simpPoly.length;i++){
+        ctx.lineTo(simpPoly[i].x, simpPoly[i].y);
+      }
+      ctx.stroke();
+    }
+
+    // return geometry for SVG export
+    return { W,H, bgCol, strokeCol, lines, cx,cy,rx,ry,p, simp };
+  }
+
+  // --- SVG Export ---
+  function pageSpec(key){
+    // mm dims
+    if (key==='A4p') return {w:210, h:297};
+    if (key==='A4l') return {w:297, h:210};
+    if (key==='A5p') return {w:148, h:210};
+    if (key==='sq200') return {w:200, h:200};
+    return {w:210, h:297};
+  }
+
+  function svgExport({dense=false}={}) {
+    const geo = render({exportMode:true, exportDense:dense});
+    const page = pageSpec(UI.page.value);
+
+    // map preview pixels -> mm on page, centred, preserving aspect
+    const padMm = 8;
+    const availW = page.w - padMm*2;
+    const availH = page.h - padMm*2;
+    const sx = availW / geo.W;
+    const sy = availH / geo.H;
+    const s = Math.min(sx, sy);
+
+    const ox = (page.w - geo.W*s) / 2;
+    const oy = (page.h - geo.H*s) / 2;
+
+    const strokeMm = parseFloat(UI.strokeMm.value);
+
+    const bg = UI.bg.value;
+    const invert = UI.invert.value === 'yes';
+
+    const stroke = (invert ? (bg==='black' ? '#000' : '#fff') : (bg==='black' ? '#fff' : '#000'));
+    const back = (invert ? (bg==='black' ? '#fff' : '#000') : (bg==='black' ? '#000' : '#fff'));
+
+    // Build paths (one per polyline). If you need fewer elements, you can merge with a path-per-row.
+    // For plotters, many paths are okay; for Inkscape responsiveness, fewer is better.
+    const parts = [];
+    parts.push(`<?xml version="1.0" encoding="UTF-8"?>`);
+    parts.push(`<svg xmlns="http://www.w3.org/2000/svg" width="${page.w}mm" height="${page.h}mm" viewBox="0 0 ${page.w} ${page.h}">`);
+    parts.push(`<rect x="0" y="0" width="${page.w}" height="${page.h}" fill="${back}"/>`);
+    parts.push(`<g id="lines" fill="none" stroke="${stroke}" stroke-width="${strokeMm}" stroke-linecap="round" stroke-linejoin="round">`);
+
+    // Optional: path simplification in mm domain
+    for (const poly of geo.lines) {
+      if (!poly || poly.length < 2) continue;
+      let d = `M ${(ox + poly[0].x*s).toFixed(3)} ${(oy + poly[0].y*s).toFixed(3)}`;
+      for (let i=1;i<poly.length;i++){
+        d += ` L ${(ox + poly[i].x*s).toFixed(3)} ${(oy + poly[i].y*s).toFixed(3)}`;
+      }
+      parts.push(`<path d="${d}"/>`);
+    }
+
+    parts.push(`</g>`);
+    parts.push(`</svg>`);
+    return parts.join('\n');
+  }
+
+  function downloadText(filename, text) {
+    const blob = new Blob([text], {type:'image/svg+xml;charset=utf-8'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  // --- Presets ---
+  function applyPreset(name){
+    const set = (k,v)=> UI[k].value = v;
+
+    if (name==='portraitFold') {
+      set('lineSpacing', 9);
+      set('samples', 1600);
+      set('simplify', 0.62);
+      set('bend', 1.35);
+      set('twist', 1.85);
+      set('falloff', 0.60);
+      set('pleat', 1.15);
+      set('pleatFreq', 2.10);
+      set('ripple', 1.05);
+      set('ripplePer', 135);
+      set('turb', 0.20);
+      set('superP', 2.25);
+      set('inset', 26);
+      set('bg', 'black');
+      set('invert', 'no');
+    } else if (name==='sculptureLoft') {
+      set('lineSpacing', 11);
+      set('samples', 1400);
+      set('simplify', 0.70);
+      set('bend', 1.05);
+      set('twist', 2.30);
+      set('falloff', 0.85);
+      set('pleat', 0.75);
+      set('pleatFreq', 1.10);
+      set('ripple', 0.85);
+      set('ripplePer', 210);
+      set('turb', 0.12);
+      set('superP', 2.65);
+      set('inset', 34);
+      set('bg', 'black');
+      set('invert', 'no');
+    } else if (name==='hardPleats') {
+      set('lineSpacing', 8);
+      set('samples', 1550);
+      set('simplify', 0.55);
+      set('bend', 1.55);
+      set('twist', 1.10);
+      set('falloff', 0.55);
+      set('pleat', 1.75);
+      set('pleatFreq', 3.80);
+      set('ripple', 0.45);
+      set('ripplePer', 180);
+      set('turb', 0.10);
+      set('superP', 2.15);
+      set('inset', 18);
+      set('bg', 'black');
+      set('invert', 'no');
+    } else if (name==='moireVortex') {
+      set('lineSpacing', 10);
+      set('samples', 1800);
+      set('simplify', 0.72);
+      set('bend', 0.85);
+      set('twist', 3.20);
+      set('falloff', 0.40);
+      set('pleat', 0.85);
+      set('pleatFreq', 2.40);
+      set('ripple', 1.35);
+      set('ripplePer', 95);
+      set('turb', 0.55);
+      set('superP', 2.45);
+      set('inset', 30);
+      set('bg', 'black');
+      set('invert', 'no');
+    }
+
+    L.presetLabel.textContent = name;
+    render();
+  }
+
+  // --- Randomise (gentle) ---
+  function randomise(){
+    const j = (v, amt, lo, hi) => clamp(v + (rndn()*amt), lo, hi);
+
+    UI.bend.value = j(parseFloat(UI.bend.value), 0.10, 0, 2.8);
+    UI.twist.value = j(parseFloat(UI.twist.value), 0.18, 0, 4.0);
+    UI.falloff.value = j(parseFloat(UI.falloff.value), 0.06, 0.15, 2.5);
+    UI.pleat.value = j(parseFloat(UI.pleat.value), 0.18, 0, 2.2);
+    UI.pleatFreq.value = j(parseFloat(UI.pleatFreq.value), 0.22, 0.2, 6.0);
+    UI.ripple.value = j(parseFloat(UI.ripple.value), 0.20, 0, 2.8);
+    UI.ripplePer.value = Math.round(j(parseFloat(UI.ripplePer.value), 18, 30, 380) / 5) * 5;
+    UI.turb.value = j(parseFloat(UI.turb.value), 0.10, 0, 1.6);
+    UI.superP.value = j(parseFloat(UI.superP.value), 0.12, 1.2, 6.0);
+    UI.inset.value = Math.round(j(parseFloat(UI.inset.value), 6, 0, 120));
+
+    render();
+  }
+
+  // --- Wire events ---
+  const controls = Object.values(UI).filter(x => x && x.tagName && (x.tagName==='INPUT' || x.tagName==='SELECT'));
+  controls.forEach(c => c.addEventListener('input', () => render()));
+
+  UI.preset.addEventListener('change', () => applyPreset(UI.preset.value));
+  UI.renderBtn.addEventListener('click', () => render());
+  UI.randomBtn.addEventListener('click', () => randomise());
+
+  UI.exportBtn.addEventListener('click', () => {
+    const svg = svgExport({dense:false});
+    downloadText(`moire_cloth_${UI.preset.value}.svg`, svg);
+  });
+  UI.exportHiBtn.addEventListener('click', () => {
+    const svg = svgExport({dense:true});
+    downloadText(`moire_cloth_${UI.preset.value}_dense.svg`, svg);
+  });
+
+  // init
+  applyPreset(UI.preset.value);
+  resize();
+})();
+</script>
+</body>
+</html>
