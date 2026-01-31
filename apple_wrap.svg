@@ -1,0 +1,169 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="1000" viewBox="0 0 1000 1000">
+  <defs>
+    <!-- Approximate apple silhouette for clipping (not extracted from your image) -->
+    <clipPath id="appleClip">
+      <path d="
+        M 500 160
+        C 540 120, 600 120, 640 165
+        C 680 210, 685 260, 660 310
+        C 720 345, 770 420, 760 520
+        C 750 660, 650 820, 500 850
+        C 350 820, 250 660, 240 520
+        C 230 420, 280 345, 340 310
+        C 315 260, 320 210, 360 165
+        C 400 120, 460 120, 500 160
+        Z
+      "/>
+    </clipPath>
+
+    <!-- Small stem (optional visual cue) -->
+    <clipPath id="stemClip">
+      <path d="M 500 160 C 510 130, 535 110, 540 90 C 545 70, 525 55, 510 50 C 495 45, 480 60, 485 80 C 490 110, 490 135, 500 160 Z"/>
+    </clipPath>
+  </defs>
+
+  <!-- White background -->
+  <rect x="0" y="0" width="1000" height="1000" fill="white"/>
+
+  <!-- Global straight lines (full-page), plotter-friendly -->
+  <g stroke="black" stroke-width="1" fill="none">
+    <!-- Straight carriers -->
+    <!-- (These are the lines "right up until they reach the object") -->
+    <!-- We keep spacing fairly tight to resemble the references -->
+    <g id="straight">
+      <!-- 60 lines -->
+      <!-- y from 120 to 900 step 13 -->
+      <path d="M 0 120 L 1000 120"/>
+      <path d="M 0 133 L 1000 133"/>
+      <path d="M 0 146 L 1000 146"/>
+      <path d="M 0 159 L 1000 159"/>
+      <path d="M 0 172 L 1000 172"/>
+      <path d="M 0 185 L 1000 185"/>
+      <path d="M 0 198 L 1000 198"/>
+      <path d="M 0 211 L 1000 211"/>
+      <path d="M 0 224 L 1000 224"/>
+      <path d="M 0 237 L 1000 237"/>
+      <path d="M 0 250 L 1000 250"/>
+      <path d="M 0 263 L 1000 263"/>
+      <path d="M 0 276 L 1000 276"/>
+      <path d="M 0 289 L 1000 289"/>
+      <path d="M 0 302 L 1000 302"/>
+      <path d="M 0 315 L 1000 315"/>
+      <path d="M 0 328 L 1000 328"/>
+      <path d="M 0 341 L 1000 341"/>
+      <path d="M 0 354 L 1000 354"/>
+      <path d="M 0 367 L 1000 367"/>
+      <path d="M 0 380 L 1000 380"/>
+      <path d="M 0 393 L 1000 393"/>
+      <path d="M 0 406 L 1000 406"/>
+      <path d="M 0 419 L 1000 419"/>
+      <path d="M 0 432 L 1000 432"/>
+      <path d="M 0 445 L 1000 445"/>
+      <path d="M 0 458 L 1000 458"/>
+      <path d="M 0 471 L 1000 471"/>
+      <path d="M 0 484 L 1000 484"/>
+      <path d="M 0 497 L 1000 497"/>
+      <path d="M 0 510 L 1000 510"/>
+      <path d="M 0 523 L 1000 523"/>
+      <path d="M 0 536 L 1000 536"/>
+      <path d="M 0 549 L 1000 549"/>
+      <path d="M 0 562 L 1000 562"/>
+      <path d="M 0 575 L 1000 575"/>
+      <path d="M 0 588 L 1000 588"/>
+      <path d="M 0 601 L 1000 601"/>
+      <path d="M 0 614 L 1000 614"/>
+      <path d="M 0 627 L 1000 627"/>
+      <path d="M 0 640 L 1000 640"/>
+      <path d="M 0 653 L 1000 653"/>
+      <path d="M 0 666 L 1000 666"/>
+      <path d="M 0 679 L 1000 679"/>
+      <path d="M 0 692 L 1000 692"/>
+      <path d="M 0 705 L 1000 705"/>
+      <path d="M 0 718 L 1000 718"/>
+      <path d="M 0 731 L 1000 731"/>
+      <path d="M 0 744 L 1000 744"/>
+      <path d="M 0 757 L 1000 757"/>
+      <path d="M 0 770 L 1000 770"/>
+      <path d="M 0 783 L 1000 783"/>
+      <path d="M 0 796 L 1000 796"/>
+      <path d="M 0 809 L 1000 809"/>
+      <path d="M 0 822 L 1000 822"/>
+      <path d="M 0 835 L 1000 835"/>
+      <path d="M 0 848 L 1000 848"/>
+      <path d="M 0 861 L 1000 861"/>
+      <path d="M 0 874 L 1000 874"/>
+      <path d="M 0 887 L 1000 887"/>
+      <path d="M 0 900 L 1000 900"/>
+    </g>
+
+    <!-- Warped segments, clipped to the apple silhouette.
+         These sit on top of the straight lines, so inside the apple you see curvature.
+         Outside, the original lines remain straight. -->
+    <g clip-path="url(#appleClip)">
+      <!-- Each path approximates a deformed horizontal line across the apple region.
+           The deformation is "depth-like": strongest near the centre, tighter near edges. -->
+      <!-- Built as coarse polylines for brevity; increase point density for smoother curves. -->
+
+      <!-- Helper: we reuse x-samples 200..800 step 50 -->
+      <!-- Deformation varies with y (stronger around mid-body), plus a mild left/right asymmetry. -->
+
+      <path d="M 200 198
+               L 250 197 L 300 195 L 350 192 L 400 189 L 450 186
+               L 500 184 L 550 186 L 600 189 L 650 192 L 700 195 L 750 197 L 800 198"/>
+
+      <path d="M 200 250
+               L 250 248 L 300 244 L 350 238 L 400 231 L 450 225
+               L 500 222 L 550 225 L 600 231 L 650 238 L 700 244 L 750 248 L 800 250"/>
+
+      <path d="M 200 302
+               L 250 299 L 300 292 L 350 282 L 400 270 L 450 260
+               L 500 256 L 550 260 L 600 270 L 650 282 L 700 292 L 750 299 L 800 302"/>
+
+      <path d="M 200 354
+               L 250 350 L 300 340 L 350 327 L 400 312 L 450 300
+               L 500 295 L 550 300 L 600 312 L 650 327 L 700 340 L 750 350 L 800 354"/>
+
+      <path d="M 200 406
+               L 250 401 L 300 389 L 350 372 L 400 352 L 450 337
+               L 500 331 L 550 337 L 600 352 L 650 372 L 700 389 L 750 401 L 800 406"/>
+
+      <path d="M 200 458
+               L 250 452 L 300 437 L 350 415 L 400 390 L 450 371
+               L 500 364 L 550 371 L 600 390 L 650 415 L 700 437 L 750 452 L 800 458"/>
+
+      <path d="M 200 510
+               L 250 504 L 300 488 L 350 465 L 400 439 L 450 419
+               L 500 412 L 550 419 L 600 439 L 650 465 L 700 488 L 750 504 L 800 510"/>
+
+      <path d="M 200 562
+               L 250 556 L 300 541 L 350 520 L 400 496 L 450 478
+               L 500 471 L 550 478 L 600 496 L 650 520 L 700 541 L 750 556 L 800 562"/>
+
+      <path d="M 200 614
+               L 250 609 L 300 596 L 350 579 L 400 559 L 450 544
+               L 500 538 L 550 544 L 600 559 L 650 579 L 700 596 L 750 609 L 800 614"/>
+
+      <path d="M 200 666
+               L 250 662 L 300 652 L 350 639 L 400 624 L 450 612
+               L 500 607 L 550 612 L 600 624 L 650 639 L 700 652 L 750 662 L 800 666"/>
+
+      <path d="M 200 718
+               L 250 716 L 300 710 L 350 702 L 400 692 L 450 685
+               L 500 682 L 550 685 L 600 692 L 650 702 L 700 710 L 750 716 L 800 718"/>
+
+      <path d="M 200 770
+               L 250 769 L 300 766 L 350 761 L 400 756 L 450 752
+               L 500 750 L 550 752 L 600 756 L 650 761 L 700 766 L 750 769 L 800 770"/>
+    </g>
+
+    <!-- Optional: hint of stem using vertical micro-contours -->
+    <g clip-path="url(#stemClip)">
+      <path d="M 480 40 L 480 165"/>
+      <path d="M 490 40 L 490 165"/>
+      <path d="M 500 40 L 500 165"/>
+      <path d="M 510 40 L 510 165"/>
+      <path d="M 520 40 L 520 165"/>
+    </g>
+  </g>
+</svg>
